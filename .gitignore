@@ -10,6 +10,10 @@ doc/dev_notes.txt
 src/clustexts/__pycache__/*
 tests/__pycache__/*
 
+# Package files
+dist/*
+src/clustexts.egg-info/*
+
 # Virtual environment
 bin/*
 etc/*
@@ -22,3 +26,4 @@ tests/artifacts/intents/*
 
 # Charts
 doc/*.png
+
