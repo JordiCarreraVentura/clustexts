@@ -8,6 +8,7 @@ doc/dev_notes.txt
 
 # Python cache files
 src/clustexts/__pycache__/*
+tests/__pycache__/*
 
 # Virtual environment
 bin/*
@@ -15,3 +16,6 @@ etc/*
 lib/*
 share/*
 pyvenv.cfg
+
+# Test data files
+tests/artifacts/intents/*

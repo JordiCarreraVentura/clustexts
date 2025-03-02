@@ -3,6 +3,7 @@ build
 matplotlib==3.10.1
 numpy==2.2.3
 pandas==2.2.3
+pytest==8.3.5
 scikit-learn==1.6.1
 scipy==1.15.2
 seaborn==0.13.2
