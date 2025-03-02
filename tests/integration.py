@@ -23,9 +23,6 @@ TEST_DATA = (
 def test_clustexts_integration__no_reduce():
 
     params = {
-        'plot_density': False,
-        'plot_k': False,
-        'show_examples': False,
         'range': (1, 50),
         'min_size': 2,
         'min_gain': 0.001,

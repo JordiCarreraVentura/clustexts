@@ -1,3 +1,4 @@
+from doctest import testmod
 from typing import Any, Iterable, Tuple
 
 import numpy as np
@@ -15,10 +16,7 @@ from tqdm import tqdm
 
 
 PARAMS = {
-    'plot_density': True,
-    'plot_k': True,
-    'show_examples': True,
-    'range': (8, 50),
+    'range': (2, 20),
     'min_size': 0,
     'min_gain': 0.03,
     'vectorizer': {
@@ -32,8 +30,12 @@ PARAMS = {
         'n_iter': 20,
         'random_state': None
     },
-    'verbose': True
+    'plot_density': False,
+    'plot_k': False,
+    'show_examples': False,
+    'verbose': False
 }
+
 
 
 class Clustexts:
@@ -43,6 +45,99 @@ class Clustexts:
         *args,
         **kwargs
     ) -> None:
+        """
+        Performs k-means clustering on a collection of texts. It automates the selection of `k` by running the elbow method implicitly. The algorithm only expects the range of minimum and maximum values for `k` (default to 2 and 20, respectively).
+        
+        Texts are encoded using a TFIDF Bag-of-Words representation. Optionally, Truncated Singular Value Decomposition can be used to reduce the dimensionality of the resulting matrix and project the topology onto an embedded space, for improved data compression and schema generalization.
+        
+        The call to returns an iterator containing the cluster identifiers associated with each input document.
+
+
+        Examples
+        --------
+        >>> rows = [
+        ...   'one text',
+        ...   'another text',
+        ...   'this sentence',
+        ...   'fourth sentence',
+        ...   'fifth sentence',
+        ... ]
+        >>> df = pd.DataFrame(rows, columns=['text'])
+        
+        >>> cls = Clustexts(
+        ...   reducer={},
+        ...   range = (2, 10),
+        ...   min_gain=0.001,
+        ...   vectorizer={'min_df': 0.0}
+        ... )
+        >>> df['cluster'] = cls(df['text'])
+
+        >>> cls = Clustexts(
+        ...   min_size = 3,
+        ...   min_gain = 0.001,
+        ...   range = (2, 10),
+        ...   vectorizer = {
+        ...     'max_features': 100
+        ...   },
+        ...   reducer={}
+        ... )
+        >>> df['cluster'] = cls(df['text'])
+
+        Parameters
+        ----------
+        
+        -- Clustering --
+        
+            range: Tuple[int, int] = (2, 20)
+                Specifies the minimum and maximum values of `k` to explore when applying the elbow method.
+
+            min_size: int = 0
+                The minimum cluster size to be accepted. If reached, the clustering stops.
+                
+            min_gain: float = 0.03
+                The minimum relative improvement for the clustering to continue running (as a percentage of the inertia). If the relative improvement becomes smaller than this value at any point, the clustering stops.
+        
+
+        -- Vectorization (required) --
+
+            All these parameters are used with their standard meaning in scikit-learn. Refer to the package's documentation.
+            ```
+            vectorizer: Dict[str, Any]
+                max_features: int = 35_000
+                max_df: int | float = 0.5
+                min_df: int | float = 1
+                use_idf: bool = True
+                ...
+            ```
+
+
+        -- Reporting (optional) --
+        
+            plot_density: bool = False
+                If set to `True`, the system will plot cluster densities (number of documents in each cluster).
+                
+            plot_k: bool = False
+                If set to `True`, the algorithm will plot the inertia trendline for every `k` that has been explored.
+                
+            show_examples: bool = False
+                If set to `True`, the algorithm will display 3 examples of each output cluster once the elbow has been found.
+
+            verbose: bool = False
+                If set to `True`, prints a message on the terminal specifying the clustering termination condition.
+        
+        
+        -- Dimensionality reduction (optional) --
+        
+            All these parameters are used with their standard meaning in scikit-learn. Refer to the package's documentation.
+            ```
+            reducer: Dict[str, Any]
+                n_components: int = 200
+                n_iter: int = 20
+                random_state: int = None
+                ...
+            ```
+        
+        """
         params = PARAMS
         params.update(dict(kwargs))
         self.__dict__.update(params)
@@ -71,6 +166,11 @@ class Clustexts:
     
         min_k, max_k = self.range
         for k in range(min_k, max_k + 1):
+            if k >= X.shape[0]:
+                if self.verbose:
+                    print(f"Stopping early at k={k} since it's "
+                          "equal to the number of input documents.")
+                break
             kmeansModel = KMeans(n_clusters=k, random_state=42)
             kmeansModel.fit(X)
             inertia = kmeansModel.inertia_
@@ -112,11 +212,34 @@ class Clustexts:
 
 
     def encode(self, X: Iterable[str]) -> np.ndarray:
+        """
+        Transforms input text X to a numerical vector using TF-IDF Vectorizer,
+        and possibly applying SVD dimensionality reduction.
+        
+        Args:
+            X: Iterable of strings, representing text data.
+
+        Returns:
+            NumPy array of vectorized text data.
+        """
         _X = self.__encode(X)
         return _X
 
 
-    def __call__(self, X: Iterable[str], explain=False) -> Iterable[int]:
+    def __call__(self, X: Iterable[str]) -> Iterable[int]:
+        """
+        Function that fits model on input data X.
+        
+        Parameters
+        ----------
+        X: Iterable[str]
+            Input text data that needs to be clustered.
+
+        Returns
+        -------
+        Iterable[int]
+            Cluster labels for each data in X.
+        """
         _X = self.__encode(X)
         best_k, best_clustering = self.__find_best_k(_X)
         if self.plot_density:
@@ -127,6 +250,17 @@ class Clustexts:
     
 
     def __plot_density(self, best_k: int, best_clustering: KMeans) -> None:
+        """
+        Plots a density graph representing the distribution of data among clusters.
+        
+        Parameters
+        ----------
+        best_k: int
+            Optimal number of clusters.
+
+        best_clustering: KMeans
+            KMeans model with optimal number of clusters.
+        """
         cluster_sizes = np.bincount(best_clustering.labels_)
     
         plt.subplot(1, 2, 2)
@@ -149,15 +283,51 @@ class Clustexts:
         best_k: int,
         best_clustering: KMeans
     ) -> None:
+        """
+        Prints representatives from each clusters.
+        
+        Parameters
+        ----------
+        X: Iterable[str]
+            List of texts.
+
+        best_k: int
+            Optimal number of clusters.
+
+        best_clustering: KMeans
+            KMeans model with optimal number of clusters.
+        """
         for cluster_num in range(best_k):
             samples = np.where(best_clustering.labels_ == cluster_num)[0]
             if len(samples) > 3:
                 samples = np.random.choice(samples, 3)
             for sample in samples:
                 print(f"{cluster_num + 1}: {X.iloc[sample]}")
-    
+
+
+testmod()
 
 if __name__ == "__main__":
+
+    rows = [
+      'one text',
+      'another text',
+      'a similar text',
+      'this sentence',
+      'fourth sentence',
+      'fifth sentence',
+    ]
+    df = pd.DataFrame(rows, columns=['text'])
+    
+    cls = Clustexts(
+        reducer={},
+        show_examples=True,
+        min_gain=0.001,
+        vectorizer={'min_df': 0.0}
+    )
+    df['cluster'] = cls(df['text'])
+
+
     params = PARAMS.copy()
     params['reducer'] = dict([])
     eklus = Clustexts(**params)
