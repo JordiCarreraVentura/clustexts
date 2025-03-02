@@ -29,8 +29,10 @@ PARAMS = {
     },
     'reducer': {
         'n_components': 200,
-        'n_iter': 20
-    }
+        'n_iter': 20,
+        'random_state': None
+    },
+    'verbose': True
 }
 
 
@@ -53,12 +55,10 @@ class Clustexts:
     
     def __encode(self, X: Iterable[str]) -> np.ndarray:
         X = self._vectorizer.fit_transform(X)
-        print(X.shape)
         if self.reducer:
             X = self._reducer.fit_transform(X)
         else:
             X = np.asarray(X.todense())
-        print(type(X), X.shape)
         return X
     
     def __getattr__(self, key: str) -> Any:
@@ -88,9 +88,10 @@ class Clustexts:
                     improvement < self.min_gain
                     or min_cluster_size == self.min_size
                 ):
-                    print(f"Stopping early at k={k} due to small "
-                          f"improvement ({improvement:.4f}) or "
-                          "singleton cluster.")
+                    if self.verbose:
+                        print(f"Stopping early at k={k} due to small "
+                              f"improvement ({improvement:.4f}) or "
+                              "singleton cluster.")
                     break
     
             prev_inertia = inertia
@@ -111,16 +112,12 @@ class Clustexts:
 
 
     def encode(self, X: Iterable[str]) -> np.ndarray:
-        print(X.shape)
         _X = self.__encode(X)
-        print(_X.shape)
         return _X
 
 
     def __call__(self, X: Iterable[str], explain=False) -> Iterable[int]:
-        print(X.shape)
         _X = self.__encode(X)
-        print(_X.shape)
         best_k, best_clustering = self.__find_best_k(_X)
         if self.plot_density:
             self.__plot_density(best_k, best_clustering)
