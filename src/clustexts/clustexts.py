@@ -1,17 +1,14 @@
 from doctest import testmod
+from copy import deepcopy
 from typing import Any, Iterable, Tuple
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
-from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import silhouette_score
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.tree import export_text
 from tqdm import tqdm
 
 
@@ -138,7 +135,7 @@ class Clustexts:
             ```
         
         """
-        params = PARAMS
+        params = deepcopy(PARAMS)
         params.update(dict(kwargs))
         self.__dict__.update(params)
         self._vectorizer = TfidfVectorizer(**self.vectorizer)
@@ -157,7 +154,10 @@ class Clustexts:
         return X
     
     def __getattr__(self, key: str) -> Any:
-        return self.__dict__[key]
+        try:
+            return self.__dict__[key]
+        except KeyError:
+            raise AttributeError(key) from None
 
     
     def __find_best_k(self, X: np.ndarray) -> Tuple[int, KMeans]:
@@ -302,12 +302,12 @@ class Clustexts:
             if len(samples) > 3:
                 samples = np.random.choice(samples, 3)
             for sample in samples:
-                print(f"{cluster_num + 1}: {X.iloc[sample]}")
+                print(f"{cluster_num + 1}: {X[sample] if isinstance(X, pd.DataFrame) else list(X)[sample]}")
 
-
-testmod()
 
 if __name__ == "__main__":
+    from doctest import testmod
+    testmod()
 
     rows = [
       'one text',
